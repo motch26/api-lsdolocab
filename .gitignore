@@ -1,0 +1,6 @@
+.env
+logs/*
+node_modules
+notes
+public/uploads/*
+tmp/*
