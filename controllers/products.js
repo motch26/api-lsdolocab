@@ -16,15 +16,19 @@ module.exports.addProduct = async (req, res) => {
     const form = req.body;
     const files = req.files;
     const product = await addProduct(form);
+    if (product.error) {
+      throw new Error(product.error);
+    }
     const images = await uploadFiles(files, product.product);
     await addProductImages(product.product._id, images);
     return {
       product,
-      error: product.error,
       message: "Product added successfully",
     };
   } catch (error) {
-    return error;
+    return {
+      error: error.message,
+    };
   }
 };
 module.exports.getProduct = async (_id) => {
