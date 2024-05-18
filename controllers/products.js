@@ -88,11 +88,9 @@ module.exports.searchProducts = async (query) => {
       findQuery.category = category;
     }
     if (color) {
-      findQuery.variants = {
-        $elemMatch: { color },
-      };
+      findQuery["colors.colorCodes"] = color;
     }
-    if (parseInt(hasStocks)) {
+    if (hasStocks) {
       findQuery.variants = {
         $elemMatch: { stocks: { $gt: 0 } },
       };

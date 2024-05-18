@@ -64,7 +64,7 @@ router.get("/getProducts", async (req, res, next) => {
 
 router.get("/searchProducts", async (req, res, next) => {
   try {
-    const result = await searchProducts(req.query);
+    const result = await searchProducts(JSON.parse(req.query.json));
     res.status(200).json(result);
   } catch (err) {
     next(err);

@@ -14,13 +14,42 @@ module.exports.addProduct = async (form) => {
       updatedBy,
       category,
       useFor,
+      hasSizes,
     } = form;
+
+    let variants = [];
+    // Convert hasSizes to boolean
+    const hasSizesBool = hasSizes === "true";
+
+    if (hasSizesBool) {
+      console.log("hasSizes");
+      JSON.parse(colors).forEach((color) => {
+        for (let size = 35; size <= 50; size++) {
+          variants.push({
+            _id: new ObjectId(),
+            color: color.name,
+            size: size.toString(),
+            stocks: 0,
+          });
+        }
+      });
+    } else {
+      console.log("noSizes");
+      JSON.parse(colors).forEach((color) => {
+        variants.push({
+          _id: new ObjectId(),
+          color: color.name,
+          size: null,
+          stocks: 0,
+        });
+      });
+    }
 
     const product = {
       model,
       brand,
       colors: JSON.parse(colors),
-      variants: [],
+      variants,
       category,
       useFor: JSON.parse(useFor),
       updatedBy,
@@ -39,35 +68,6 @@ module.exports.addProduct = async (form) => {
         },
       ],
     };
-
-    JSON.parse(colors).forEach((color) => {
-      const { name, sizes } = color;
-      const variantSizes = [];
-      if (sizes.men && sizes.women) {
-        for (let size = 36; size <= 46; size++) {
-          variantSizes.push(size.toString());
-        }
-      } else if (sizes.men) {
-        for (let size = 40; size <= 46; size++) {
-          variantSizes.push(size.toString());
-        }
-      } else if (sizes.women) {
-        for (let size = 36; size <= 40; size++) {
-          variantSizes.push(size.toString());
-        }
-      } else {
-        variantSizes.push(null);
-      }
-
-      variantSizes.forEach((size) => {
-        product.variants.push({
-          _id: new ObjectId(),
-          color: name,
-          size,
-          stocks: 0,
-        });
-      });
-    });
 
     const duplicateProduct = await db
       .collection("products")
@@ -118,6 +118,7 @@ module.exports.editProduct = async (form) => {
       useFor,
       sellPrice,
       buyPrice,
+      hasSizes,
     } = form;
 
     const existingProduct = await db
@@ -141,48 +142,28 @@ module.exports.editProduct = async (form) => {
     if (colors) {
       product.colors = colors;
       product.variants = [];
-
       colors.forEach((color) => {
-        const { name, sizes } = color;
-        const variantSizes = [];
-
-        if (sizes.men && sizes.women) {
-          for (let size = 36; size <= 46; size++) {
-            variantSizes.push(size.toString());
-          }
-        } else if (sizes.men) {
-          for (let size = 40; size <= 46; size++) {
-            variantSizes.push(size.toString());
-          }
-        } else if (sizes.women) {
-          for (let size = 36; size <= 40; size++) {
-            variantSizes.push(size.toString());
+        if (hasSizes) {
+          for (let size = 35; size <= 50; size++) {
+            product.variants.push({
+              _id: new ObjectId(),
+              color: color.name,
+              size: size.toString(),
+              stocks: 0,
+            });
           }
         } else {
-          variantSizes.push(null);
-        }
-
-        variantSizes.forEach((size) => {
-          const existingVariant = existingProduct.variants.find(
-            (variant) => variant.color === name && variant.size === size
-          );
-
-          const stocks = existingVariant ? existingVariant.stocks : 0;
-
           product.variants.push({
-            _id: existingVariant ? existingVariant._id : new ObjectId(),
-            color: name,
-            size,
-            stocks,
+            _id: new ObjectId(),
+            color: color.name,
+            stocks: 0,
           });
-        });
+        }
       });
 
       // Remove variants that no longer exist in colors
       existingProduct.variants = existingProduct.variants.filter((variant) =>
-        product.colors.some(
-          (color) => color.name === variant.color && color.sizes[variant.size]
-        )
+        product.colors.some((color) => color.name === variant.color)
       );
     }
 
@@ -248,7 +229,7 @@ module.exports.deleteProduct = async (_id) => {
 module.exports.getProducts = async () => {
   const db = getDB();
   try {
-    const result = await db.collection("products").find({}).toArray();
+    const result = await db.collection("products").find({}).sort({ model: 1 }).toArray();
     return result;
   } catch (err) {
     return err;
@@ -261,7 +242,7 @@ module.exports.searchProducts = async (findQuery, projection, sort) => {
     const result = await db
       .collection("products")
       .find(findQuery, { projection })
-      .sort(sort)
+      .sort({ model: 1 }) // Sort alphabetically by the "model" field
       .toArray();
     return result;
   } catch (err) {
