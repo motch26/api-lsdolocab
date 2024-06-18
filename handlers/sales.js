@@ -95,6 +95,7 @@ module.exports.addSale = async (form) => {
           $inc: { "variants.$.stocks": -product.count },
         });
       }
+      return { message: "Sale added successfully" };
     }
     return result;
   } catch (err) {

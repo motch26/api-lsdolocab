@@ -10,6 +10,7 @@ const {
   editVariantStocks,
 } = require("../handlers/products");
 const { uploadFiles } = require("../utils/uploads");
+const { ObjectId } = require("mongodb");
 
 module.exports.addProduct = async (req, res) => {
   try {
@@ -59,9 +60,9 @@ module.exports.deleteProduct = async (_id) => {
   }
 };
 
-module.exports.getProducts = async () => {
+module.exports.getProducts = async (query) => {
   try {
-    const result = await getProducts();
+    const result = await getProducts(query);
     return result;
   } catch (error) {
     return error;
@@ -70,7 +71,7 @@ module.exports.getProducts = async () => {
 
 module.exports.searchProducts = async (query) => {
   try {
-    const { searchText, color, brand, hasStocks, category, useFor } = query;
+    const { searchText, brand, color, hasStocks, category, useFor } = query;
 
     let findQuery = {};
     let projection = {};

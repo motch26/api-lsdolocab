@@ -30,6 +30,7 @@ module.exports.startSession = async (form) => {
         },
       });
 
+      // Generate session name with session number
       sessionName = `Session ${dateStr}-${sessionsToday + 1}`;
     }
 
@@ -52,7 +53,8 @@ module.exports.startSession = async (form) => {
     const session = {
       userId,
       name: sessionName,
-      startingMoney: startingMoney || 0, // Add starting money to the session, default to 0 if not provided
+      startingMoney: parseFloat(startingMoney) || 0, // Convert starting money to a float value, default to 0 if not provided
+      balance: parseFloat(startingMoney) || 0, // Add balance field with starting value of startingMoney
       createdAt: new Date(),
       updatedAt: new Date(),
       status: "open",
@@ -64,7 +66,9 @@ module.exports.startSession = async (form) => {
       throw new Error("Failed to start session.");
     }
 
-    return result; // Return the inserted session
+    return {
+      message: "Session started successfully.",
+    };
   } catch (error) {
     return {
       error: error.message,
@@ -103,7 +107,9 @@ module.exports.endSession = async (form) => {
       throw new Error("Failed to close session.");
     }
 
-    return result;
+    return {
+      message: "Session closed successfully.",
+    };
   } catch (error) {
     return {
       error: error.message,
@@ -160,6 +166,7 @@ module.exports.getOpenSession = async (userId) => {
 };
 
 module.exports.deleteSession = async (sessionId) => {
+  console.log(sessionId);
   try {
     const db = getDB();
     const session = await db.collection("sessions").findOne({
@@ -184,7 +191,13 @@ module.exports.deleteSession = async (sessionId) => {
       .collection("sessions")
       .deleteOne({ _id: new ObjectId(sessionId) });
 
-    return result;
+    if (!result.deletedCount) {
+      throw new Error("Failed to delete session.");
+    }
+
+    return {
+      message: "Session deleted successfully.",
+    };
   } catch (error) {
     return {
       error: error.message,

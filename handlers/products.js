@@ -1,4 +1,3 @@
-const { error } = require("winston");
 const { getDB } = require("../config/dbConnection");
 const { ObjectId } = require("mongodb");
 
@@ -22,19 +21,45 @@ module.exports.addProduct = async (form) => {
     const hasSizesBool = hasSizes === "true";
 
     if (hasSizesBool) {
-      console.log("hasSizes");
       JSON.parse(colors).forEach((color) => {
-        for (let size = 35; size <= 50; size++) {
+        const { men, women } = color.sizes;
+        if (men && women) {
+          for (let size = 36; size <= 46; size++) {
+            variants.push({
+              _id: new ObjectId(),
+              color: color.name,
+              size: size.toString(),
+              stocks: 0,
+            });
+          }
+        } else if (men) {
+          for (let size = 40; size <= 46; size++) {
+            variants.push({
+              _id: new ObjectId(),
+              color: color.name,
+              size: size.toString(),
+              stocks: 0,
+            });
+          }
+        } else if (women) {
+          for (let size = 36; size <= 46; size++) {
+            variants.push({
+              _id: new ObjectId(),
+              color: color.name,
+              size: size.toString(),
+              stocks: 0,
+            });
+          }
+        } else {
           variants.push({
             _id: new ObjectId(),
             color: color.name,
-            size: size.toString(),
+            size: null,
             stocks: 0,
           });
         }
       });
     } else {
-      console.log("noSizes");
       JSON.parse(colors).forEach((color) => {
         variants.push({
           _id: new ObjectId(),
@@ -99,6 +124,29 @@ module.exports.getProduct = async (_id) => {
     const result = await db
       .collection("products")
       .findOne({ _id: new ObjectId(_id) });
+    const cargoHistory = await db
+      .collection("cargos")
+      .aggregate([
+        { $match: { "products._id": _id.toString(), received: true } },
+        { $unwind: "$products" },
+        { $match: { "products._id": _id.toString() } },
+        {
+          $group: {
+            _id: "$products._id",
+            variants: { $addToSet: "$products.variants" },
+            cargoName: { $last: "$name" },
+            latestUpdate: { $last: "$updatedAt" },
+            courier: { $last: "$courier" },
+          },
+        },
+      ])
+      .toArray();
+    result.cargoHistory = cargoHistory.map((item) => ({
+      variants: item.variants.flat(),
+      cargoName: item.cargoName,
+      lastUpdate: item.latestUpdate,
+      courier: item.courier,
+    }));
     return result;
   } catch (err) {
     return err;
@@ -144,19 +192,74 @@ module.exports.editProduct = async (form) => {
       product.variants = [];
       colors.forEach((color) => {
         if (hasSizes) {
-          for (let size = 35; size <= 50; size++) {
+          const { men, women } = color.sizes;
+          if (men && women) {
+            for (let size = 36; size <= 46; size++) {
+              const existingVariant = existingProduct.variants.find(
+                (variant) =>
+                  variant.color === color.name &&
+                  variant.size === size.toString()
+              );
+              const stocks = existingVariant ? existingVariant.stocks : 0;
+              product.variants.push({
+                _id: existingVariant ? existingVariant._id : new ObjectId(),
+                color: color.name,
+                size: size.toString(),
+                stocks,
+              });
+            }
+          } else if (men) {
+            for (let size = 40; size <= 46; size++) {
+              const existingVariant = existingProduct.variants.find(
+                (variant) =>
+                  variant.color === color.name &&
+                  variant.size === size.toString()
+              );
+              const stocks = existingVariant ? existingVariant.stocks : 0;
+              product.variants.push({
+                _id: existingVariant ? existingVariant._id : new ObjectId(),
+                color: color.name,
+                size: size.toString(),
+                stocks,
+              });
+            }
+          } else if (women) {
+            for (let size = 36; size <= 40; size++) {
+              const existingVariant = existingProduct.variants.find(
+                (variant) =>
+                  variant.color === color.name &&
+                  variant.size === size.toString()
+              );
+              const stocks = existingVariant ? existingVariant.stocks : 0;
+              product.variants.push({
+                _id: existingVariant ? existingVariant._id : new ObjectId(),
+                color: color.name,
+                size: size.toString(),
+                stocks,
+              });
+            }
+          } else {
+            const existingVariant = existingProduct.variants.find(
+              (variant) => variant.color === color.name && variant.size === null
+            );
+            const stocks = existingVariant ? existingVariant.stocks : 0;
             product.variants.push({
-              _id: new ObjectId(),
+              _id: existingVariant ? existingVariant._id : new ObjectId(),
               color: color.name,
-              size: size.toString(),
-              stocks: 0,
+              size: null,
+              stocks,
             });
           }
         } else {
+          const existingVariant = existingProduct.variants.find(
+            (variant) => variant.color === color.name && variant.size === null
+          );
+          const stocks = existingVariant ? existingVariant.stocks : 0;
           product.variants.push({
-            _id: new ObjectId(),
+            _id: existingVariant ? existingVariant._id : new ObjectId(),
             color: color.name,
-            stocks: 0,
+            size: null,
+            stocks,
           });
         }
       });
@@ -226,10 +329,24 @@ module.exports.deleteProduct = async (_id) => {
   }
 };
 
-module.exports.getProducts = async () => {
+module.exports.getProducts = async (query) => {
+  const { withStocks } = query;
   const db = getDB();
   try {
-    const result = await db.collection("products").find({}).sort({ model: 1 }).toArray();
+    let result;
+    if (withStocks === "true") {
+      result = await db
+        .collection("products")
+        .find({ "variants.stocks": { $gt: 0 } })
+        .sort({ model: 1 })
+        .toArray();
+    } else {
+      result = await db
+        .collection("products")
+        .find({})
+        .sort({ model: 1 })
+        .toArray();
+    }
     return result;
   } catch (err) {
     return err;

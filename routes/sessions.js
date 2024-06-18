@@ -30,6 +30,7 @@ router.put("/endSession", async (req, res, next) => {
 
 router.get("/getSessions", async (req, res, next) => {
   try {
+    console.log(req.query.userId);
     const result = await getSessions(req.query.userId);
     res.status(200).json(result);
   } catch (error) {
@@ -57,7 +58,7 @@ router.get("/getOpenSession", async (req, res, next) => {
 
 router.delete("/deleteSession", async (req, res, next) => {
   try {
-    const result = await deleteSession(req.query.sessionId);
+    const result = await deleteSession(req.body.sessionId);
     res.status(200).json(result);
   } catch (error) {
     next(error);
